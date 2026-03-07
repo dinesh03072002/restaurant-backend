@@ -9,42 +9,19 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
+// CORS configuration - Simplified version
 app.use(cors({
-    origin: function(origin, callback) {
-        const allowedOrigins = [
-            'http://localhost:3000',
-            'https://restaurant-frontend-liart-pi.vercel.app',
-            'https://restaurant-frontend.vercel.app' // Add this too if you have it
-        ];
-        
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: true, // Allow any origin
     credentials: true,
-    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+    optionsSuccessStatus: 200
 }));
 
-// Add CORS headers manually as a backup
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    
-    next();
-});
+// Handle preflight requests explicitly
+app.options('*', cors({
+    origin: true,
+    credentials: true,
+    optionsSuccessStatus: 200
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
