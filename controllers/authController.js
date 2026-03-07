@@ -4,75 +4,88 @@ const db = require('../models');
 
 const User = db.User;
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
 const login = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
+    try {
+        const { email, password } = req.body;
+        
+        console.log('=================================');
+        console.log('🔐 LOGIN ATTEMPT');
+        console.log('Email received:', email);
+        console.log('Password length:', password?.length);
+        console.log('=================================');
 
-    const { email, password } = req.body;
+        // Find user by email - make sure this matches your model
+        const user = await User.findOne({ 
+            where: { 
+                email: email 
+            } 
+        });
 
-    // Find user by email
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
-    }
-
-    // Check password using model method
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role
+        console.log('User query result:', user ? '✅ User found' : '❌ User not found');
+        
+        if (!user) {
+            console.log('No user found with email:', email);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
         }
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
+
+        console.log('User ID:', user.id);
+        console.log('User email:', user.email);
+        console.log('User role:', user.role);
+        console.log('Stored password hash length:', user.password?.length);
+
+        // Check password using model method
+        const isMatch = await user.comparePassword(password);
+        console.log('Password comparison result:', isMatch ? '✅ MATCH' : '❌ NO MATCH');
+
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Create JWT token
+        const token = jwt.sign(
+            {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRE }
+        );
+
+        console.log('✅ Login successful for:', user.email);
+        console.log('=================================');
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
 };
+
 
 // @desc    Register user (admin only)
 // @route   POST /api/auth/register
