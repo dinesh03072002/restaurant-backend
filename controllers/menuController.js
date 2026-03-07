@@ -289,10 +289,10 @@ const uploadImage = async (req, res) => {
         console.log('- Path:', req.file.path);
 
         // Return the file URL
-        const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
-        console.log('Image URL generated:', imageUrl);
-        console.log('========== UPLOAD COMPLETE ==========');
+console.log('Image URL generated:', imageUrl);
 
         res.json({
             success: true,
