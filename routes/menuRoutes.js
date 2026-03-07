@@ -7,7 +7,7 @@ const {
     getCategories
 } = require('../controllers/menuController');
 
-// These routes should be PUBLIC (no auth middleware)
+
 router.get('/', getMenuItems);
 router.get('/categories', getCategories);
 router.get('/category/:category', getMenuItemsByCategory);
