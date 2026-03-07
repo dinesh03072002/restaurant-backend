@@ -7,18 +7,14 @@ const adminRoutes = require('./adminRoutes');
 const categoryRoutes = require('./categoryRoutes');
 const { healthCheck } = require('../controllers/menuController');
 
-console.log('✅ main index router loaded');
-
-// Health check route
+// Public routes - NO AUTH REQUIRED
 router.get('/health', healthCheck);
+router.use('/menu', menuRoutes);        
+router.use('/categories', categoryRoutes); 
+router.use('/auth', authRoutes);         
 
-// Public routes
-router.use('/menu', menuRoutes);
-router.use('/auth', authRoutes);
-router.use('/orders', orderRoutes);
-router.use('/categories', categoryRoutes);
-
-// Admin routes (protected)
-router.use('/admin', adminRoutes);
+// Protected routes - require authentication
+router.use('/orders', orderRoutes);      
+router.use('/admin', adminRoutes);        
 
 module.exports = router;
