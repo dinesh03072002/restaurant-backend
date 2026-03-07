@@ -12,7 +12,7 @@ const app = express();
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL
+  'https://restaurant-frontend-liart-pi.vercel.app'
 ].filter(Boolean);
 
 app.use(cors({
