@@ -12,18 +12,37 @@ const transporter = nodemailer.createTransport({
 // Verify connection configuration
 transporter.verify((error, success) => {
     if (error) {
-        console.log('Email config error:', error);
+        console.log('❌ Email config error:', error);
     } else {
-        console.log('Email server is ready to send messages');
+        console.log('✅ Email server is ready to send messages');
     }
 });
+
+// Helper function to format date exactly like admin panel
+const formatOrderDate = (dateString) => {
+    if (!dateString) return 'Not available';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).replace('am', 'am').replace('pm', 'pm'); // Ensures lowercase am/pm
+    } catch (error) {
+        console.error('Date formatting error:', error);
+        return 'Not available';
+    }
+};
 
 // Send order confirmation to customer
 const sendCustomerOrderEmail = async (order, customerEmail) => {
     const mailOptions = {
         from: `"ABC Restaurant" <${process.env.EMAIL_USER}>`,
         to: customerEmail,
-        subject: `Order Confirmation - Order #${order.order_number}`,
+        subject: `🍽️ Order Confirmation - Order #${order.order_number}`,
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
                 <div style="text-align: center; background: #fc8019; color: white; padding: 20px; border-radius: 10px 10px 0 0;">
@@ -32,14 +51,14 @@ const sendCustomerOrderEmail = async (order, customerEmail) => {
                 </div>
                 
                 <div style="padding: 20px;">
-                    <h2 style="color: #333; margin-top: 0;">Thank you for your order!</h2>
+                    <h2 style="color: #333; margin-top: 0;">Thank you for your order! 🎉</h2>
                     
                     <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                         <h3 style="margin-top: 0; color: #fc8019;">Order Details</h3>
                         <p><strong>Order Number:</strong> ${order.order_number}</p>
-                        <p><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-                        <p><strong>Payment Method:</strong> ${order.payment_method === 'demo' ? 'Online' : 'Cash on Delivery'}</p>
-                        <p><strong>Payment Status:</strong> ${order.payment_status === 'paid' ? 'Paid' : 'Pending'}</p>
+                        <p><strong>Order Date:</strong> ${formatOrderDate(order.created_at)}</p>
+                        <p><strong>Payment Method:</strong> ${order.payment_method === 'demo' ? 'Online (Demo)' : 'Cash on Delivery'}</p>
+                        <p><strong>Payment Status:</strong> ${order.payment_status === 'paid' ? '✅ Paid' : '⏳ Pending'}</p>
                     </div>
 
                     <h3 style="color: #fc8019;">Items Ordered</h3>
@@ -52,13 +71,13 @@ const sendCustomerOrderEmail = async (order, customerEmail) => {
                             </tr>
                         </thead>
                         <tbody>
-                            ${order.items.map(item => `
+                            ${order.items ? order.items.map(item => `
                                 <tr style="border-bottom: 1px solid #e0e0e0;">
                                     <td style="padding: 10px;">${item.item_name}</td>
                                     <td style="padding: 10px; text-align: center;">${item.quantity}</td>
                                     <td style="padding: 10px; text-align: right;">₹${item.subtotal}</td>
                                 </tr>
-                            `).join('')}
+                            `).join('') : ''}
                         </tbody>
                         <tfoot>
                             <tr>
@@ -105,13 +124,14 @@ const sendAdminNotification = async (order) => {
     const mailOptions = {
         from: `"ABC Restaurant System" <${process.env.EMAIL_USER}>`,
         to: process.env.ADMIN_EMAIL,
-        subject: `New Order Received - #${order.order_number}`,
+        subject: `🔔 New Order Received - #${order.order_number}`,
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #fc8019;">New Order Alert!</h2>
+                <h2 style="color: #fc8019;">New Order Alert! 🛎️</h2>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
                     <p><strong>Order Number:</strong> ${order.order_number}</p>
+                    <p><strong>Order Date:</strong> ${formatOrderDate(order.created_at)}</p>
                     <p><strong>Customer:</strong> ${order.customer_name}</p>
                     <p><strong>Phone:</strong> ${order.customer_phone}</p>
                     <p><strong>Address:</strong> ${order.customer_address}</p>
@@ -122,9 +142,9 @@ const sendAdminNotification = async (order) => {
 
                 <h3>Order Items:</h3>
                 <ul>
-                    ${order.items.map(item => `
+                    ${order.items ? order.items.map(item => `
                         <li>${item.item_name} x${item.quantity} = ₹${item.subtotal}</li>
-                    `).join('')}
+                    `).join('') : ''}
                 </ul>
 
                 <p style="margin-top: 20px;">

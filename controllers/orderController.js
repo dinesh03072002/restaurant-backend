@@ -1,5 +1,5 @@
 const db = require('../models');
-const { sendCustomerOrderEmail, sendAdminNotification } = require('../config/email');
+const { sendCustomerOrderEmail, sendAdminNotification } = require('../config/resend');
 const { validationResult } = require('express-validator');
 const sequelize = require('sequelize');
 
