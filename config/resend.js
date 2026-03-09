@@ -3,47 +3,41 @@ const { Resend } = require('resend');
 // Initialize Resend with your API key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Helper function to format date
+
 const formatOrderDate = (dateString) => {
+    const options = {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+    
     if (!dateString) {
-        return new Date().toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return new Date().toLocaleString('en-IN', options);
     }
     
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
-            return new Date().toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            return new Date().toLocaleString('en-IN', options);
         }
-        
-        return date.toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return date.toLocaleString('en-IN', options);
     } catch (error) {
-        return new Date().toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return new Date().toLocaleString('en-IN', options);
     }
 };
+
+// In your email HTML templates, use it like this:
+<div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #fc8019;">Order Details</h3>
+    <p><strong>Order Number:</strong> ${order.order_number}</p>
+    <p><strong>Order Date:</strong> ${formatOrderDate(order.created_at)}</p>
+    <p><strong>Payment Method:</strong> ${order.payment_method === 'demo' ? 'Online (Demo)' : 'Cash on Delivery'}</p>
+    <p><strong>Payment Status:</strong> ${order.payment_status === 'paid' ? '✅ Paid' : '⏳ Pending'}</p>
+</div>
 
 // Send order confirmation to customer
 const sendCustomerOrderEmail = async (order, customerEmail) => {
