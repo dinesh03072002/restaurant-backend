@@ -1,6 +1,8 @@
 const db = require('../models');
+const { sendCustomerOrderEmail, sendAdminNotification } = require('../config/email');
 const { validationResult } = require('express-validator');
 const sequelize = require('sequelize');
+
 
 const Order = db.Order;
 const OrderItem = db.OrderItem;
@@ -10,11 +12,16 @@ const MenuItem = db.MenuItem;
 // @route   POST /api/orders
 // @access  Public
 const createOrder = async (req, res) => {
-  const transaction = await db.sequelize.transaction();
-
+  // Declare transaction variable outside try block
+  let transaction;
+  
   try {
+    // Start transaction
+    transaction = await db.sequelize.transaction();
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         errors: errors.array()
@@ -24,9 +31,11 @@ const createOrder = async (req, res) => {
     const {
       customer_name,
       customer_phone,
+      customer_email,
       customer_address,
       items,
       payment_method,
+      payment_status,
       special_instructions,
       delivery_date,
       delivery_time
@@ -45,7 +54,7 @@ const createOrder = async (req, res) => {
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const order_number = `ORD${year}${month}${day}${random}`;
 
-    // Create order WITH order_number
+    // Create order
     const order = await Order.create({
       order_number,
       customer_name,
@@ -55,13 +64,13 @@ const createOrder = async (req, res) => {
       delivery_fee,
       total,
       payment_method,
-      payment_status: 'pending',
+      payment_status: payment_status || 'pending',
       order_status: 'pending',
       special_instructions,
       delivery_date,
       delivery_time,
-      created_at: new Date(), // Explicitly set created_at
-      updated_at: new Date()  // Explicitly set updated_at
+      created_at: new Date(),
+      updated_at: new Date()
     }, { transaction });
 
     // Create order items
@@ -76,6 +85,7 @@ const createOrder = async (req, res) => {
       }, { transaction });
     }
 
+    // Commit transaction
     await transaction.commit();
 
     // Fetch complete order with items
@@ -86,15 +96,31 @@ const createOrder = async (req, res) => {
       }]
     });
 
-    console.log('Order created:', completeOrder.id); // Debug log
+    console.log('Order created:', completeOrder.id);
+
+    // Send emails asynchronously (don't await)
+    if (customer_email) {
+      sendCustomerOrderEmail(completeOrder, customer_email)
+        .then(() => console.log(`Customer email sent to ${customer_email}`))
+        .catch(err => console.error('Customer email failed:', err.message));
+    }
+
+    sendAdminNotification(completeOrder)
+      .then(() => console.log('Admin notification sent'))
+      .catch(err => console.error('Admin notification failed:', err.message));
 
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
       data: completeOrder
     });
+
   } catch (error) {
-    await transaction.rollback();
+    // Only rollback if transaction exists and hasn't been committed
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
+    
     console.error('Error in createOrder:', error);
     res.status(500).json({
       success: false,
@@ -103,6 +129,7 @@ const createOrder = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Get all orders (admin)
 // @route   GET /api/admin/orders
@@ -132,10 +159,10 @@ const getOrders = async (req, res) => {
         as: 'items'
       }],
       order: [['created_at', 'DESC']],
-      attributes: { include: ['created_at', 'updated_at'] } // Explicitly include timestamps
+      attributes: { include: ['created_at', 'updated_at'] }
     });
 
-    console.log('Orders fetched:', orders.length); // Debug log
+    console.log('Orders fetched:', orders.length);
 
     res.json({
       success: true,
