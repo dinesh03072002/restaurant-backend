@@ -264,13 +264,12 @@ const deleteMenuItem = async (req, res) => {
     }
 };
 
-// @desc    Upload image and optimize
+// @desc    Upload image to Cloudinary
 // @route   POST /api/admin/upload
 // @access  Private/Admin
 const uploadImage = async (req, res) => {
     try {
         console.log('========== UPLOAD REQUEST RECEIVED ==========');
-        console.log('Headers:', req.headers);
         console.log('File:', req.file);
         
         if (!req.file) {
@@ -281,34 +280,27 @@ const uploadImage = async (req, res) => {
             });
         }
 
-        console.log('File uploaded successfully:');
+        // Cloudinary returns the file info including secure URL
+        console.log('File uploaded to Cloudinary:');
         console.log('- Filename:', req.file.filename);
         console.log('- Original name:', req.file.originalname);
         console.log('- Size:', req.file.size);
-        console.log('- Mime type:', req.file.mimetype);
-        console.log('- Path:', req.file.path);
+        console.log('- Cloudinary URL:', req.file.path); // This is the secure URL
 
-        // Return the file URL
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
-
-console.log('Image URL generated:', imageUrl);
-
+        // Return the Cloudinary URL
         res.json({
             success: true,
             message: 'Image uploaded successfully',
             data: {
-                imageUrl: imageUrl,
-                filename: req.file.filename
+                imageUrl: req.file.path, // Cloudinary secure URL
+                filename: req.file.filename,
+                public_id: req.file.filename
             }
         });
 
     } catch (error) {
         console.error('========== UPLOAD ERROR ==========');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('==================================');
+        console.error('Error:', error);
         
         res.status(500).json({
             success: false,
@@ -317,6 +309,7 @@ console.log('Image URL generated:', imageUrl);
         });
     }
 };
+
 
 const healthCheck = (req, res) => {
     res.status(200).json({
