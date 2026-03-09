@@ -38,8 +38,8 @@ const sendCustomerOrderEmail = async (order, customerEmail) => {
                         <h3 style="margin-top: 0; color: #fc8019;">Order Details</h3>
                         <p><strong>Order Number:</strong> ${order.order_number}</p>
                         <p><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-                        <p><strong>Payment Method:</strong> ${order.payment_method === 'demo' ? 'Online (Demo)' : 'Cash on Delivery'}</p>
-                        <p><strong>Payment Status:</strong> ${order.payment_status === 'paid' ? '✅ Paid' : '⏳ Pending'}</p>
+                        <p><strong>Payment Method:</strong> ${order.payment_method === 'demo' ? 'Online' : 'Cash on Delivery'}</p>
+                        <p><strong>Payment Status:</strong> ${order.payment_status === 'paid' ? 'Paid' : 'Pending'}</p>
                     </div>
 
                     <h3 style="color: #fc8019;">Items Ordered</h3>
