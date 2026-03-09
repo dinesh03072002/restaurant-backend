@@ -1,0 +1,17 @@
+name: Keep Backend Awake
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          echo "Pinging backend at $(date)"
+          curl -fsS https://restaurant-backend-n366.onrender.com/api/health > /dev/null || true
+          echo "Ping complete"
