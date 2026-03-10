@@ -2,7 +2,7 @@
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const axios = require('axios'); // Make sure to install: npm install axios
+const axios = require('axios'); // Make sure axios is installed: npm install axios
 
 const Customer = db.Customer;
 
@@ -11,38 +11,49 @@ const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send SMS via Fast2SMS
+// Send SMS via Fast2SMS - QUICK SMS ROUTE (NO KYC REQUIRED)
 const sendSMSViaFast2SMS = async (mobile, otp) => {
     try {
-        console.log(`📤 Sending OTP ${otp} to ${mobile} via Fast2SMS...`);
+        console.log(`📤 Sending OTP ${otp} to ${mobile} via Fast2SMS Quick Route...`);
+        console.log(`💰 Your balance: ₹50 - This will cost ₹5 per SMS`);
         
+        // Quick SMS Route - Works without KYC!
         const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
             params: {
                 authorization: process.env.FAST2SMS_API_KEY,
-                variables_values: otp,
-                route: 'otp',
-                numbers: mobile,
+                route: 'q', // 'q' for Quick SMS route - NO KYC NEEDED
+                message: `Your OTP is ${otp}. Valid for 5 minutes.`,
+                language: 'english',
                 flash: 0,
-                DLT_TE_ID: process.env.FAST2SMS_DLT_TE_ID || '' // Optional: Add if you have DLT registration
+                numbers: mobile, // Single number or comma-separated for multiple
+                sender_id: 'FSTSMS' // Default sender ID for Quick route
             },
             headers: {
-                'Content-Type': 'application/json'
-            }
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            timeout: 15000 // 15 second timeout
         });
 
-        console.log('📬 Fast2SMS Response:', response.data);
+        console.log('📬 Fast2SMS Response:', JSON.stringify(response.data, null, 2));
 
+        // Check if successful
         if (response.data.return === true) {
-            console.log(`✅ SMS sent successfully to ${mobile}`);
+            console.log(`✅ SMS sent successfully to ${mobile} via Quick Route!`);
+            console.log(`📊 Request ID: ${response.data.request_id || 'N/A'}`);
+            console.log(`💰 Remaining balance: ₹${response.data.wallet_balance || 'Check dashboard'}`);
             return { success: true, data: response.data };
         } else {
             console.error('❌ Fast2SMS error:', response.data.message);
-            return { success: false, error: response.data.message };
+            return { success: false, error: response.data.message, data: response.data };
         }
     } catch (error) {
         console.error('❌ Fast2SMS API error:', error.message);
         if (error.response) {
-            console.error('Fast2SMS Error Details:', error.response.data);
+            console.error('Status:', error.response.status);
+            console.error('Data:', error.response.data);
+        } else if (error.request) {
+            console.error('No response received from Fast2SMS');
         }
         return { success: false, error: error.message };
     }
@@ -87,31 +98,27 @@ const sendOTP = async (req, res) => {
             otp_expiry: expiry
         });
 
-        // Send SMS via Fast2SMS
-        let smsResult = { success: false };
+        // ALWAYS send SMS via Quick Route (works with ₹50, no KYC)
+        console.log('📤 Attempting to send SMS via Fast2SMS Quick Route...');
+        const smsResult = await sendSMSViaFast2SMS(mobile, otp);
         
-        if (process.env.NODE_ENV === 'production') {
-            smsResult = await sendSMSViaFast2SMS(mobile, otp);
-            
-            if (!smsResult.success) {
-                console.warn('⚠️ Fast2SMS delivery failed, but OTP saved for verification');
-                // You might want to queue this for retry or use fallback SMS provider
-            }
+        if (smsResult.success) {
+            console.log('✅ SMS sent successfully via Quick Route!');
         } else {
-            // Development: log to console
-            console.log(`📱 DEV MODE - SMS would be sent to ${mobile} with OTP: ${otp}`);
-            console.log(`🌐 Fast2SMS would be called in production`);
-            smsResult.success = true; // Assume success in dev
+            console.error('❌ SMS failed:', smsResult.error);
+            // Don't expose failure to user, just log it
         }
 
         // Always return success to client (don't expose SMS failures)
         res.json({
             success: true,
             message: 'OTP sent successfully',
-            // Only show OTP in development for testing
+            // Show OTP in development only for testing
             debug: process.env.NODE_ENV === 'development' ? { 
                 otp,
-                sms: smsResult.success ? 'SMS would be sent' : 'SMS would fail'
+                smsSent: smsResult.success,
+                route: 'Quick SMS (₹5 per SMS)',
+                balance: '₹50 available - 10 OTPs can be sent'
             } : undefined
         });
 
@@ -252,18 +259,14 @@ const resendOTP = async (req, res) => {
             otp_expiry: expiry
         });
 
-        // Send SMS via Fast2SMS
-        let smsResult = { success: false };
+        // Send SMS via Fast2SMS Quick Route
+        console.log('📤 Attempting to resend SMS via Fast2SMS Quick Route...');
+        const smsResult = await sendSMSViaFast2SMS(mobile, otp);
         
-        if (process.env.NODE_ENV === 'production') {
-            smsResult = await sendSMSViaFast2SMS(mobile, otp);
-            
-            if (!smsResult.success) {
-                console.warn('⚠️ Fast2SMS resend failed, but OTP saved for verification');
-            }
+        if (smsResult.success) {
+            console.log('✅ SMS resent successfully!');
         } else {
-            console.log(`🔄 DEV MODE - Resent OTP for ${mobile}: ${otp}`);
-            smsResult.success = true;
+            console.error('❌ SMS resend failed:', smsResult.error);
         }
 
         res.json({
@@ -271,7 +274,8 @@ const resendOTP = async (req, res) => {
             message: 'OTP resent successfully',
             debug: process.env.NODE_ENV === 'development' ? { 
                 otp,
-                sms: smsResult.success ? 'SMS would be sent' : 'SMS would fail'
+                smsSent: smsResult.success,
+                route: 'Quick SMS (₹5 per SMS)'
             } : undefined
         });
 
@@ -285,34 +289,8 @@ const resendOTP = async (req, res) => {
     }
 };
 
-// @desc    Verify OTP (alternative endpoint for testing)
-// @route   POST /api/otp/check
-// @access  Public (for testing only)
-const checkOTP = async (req, res) => {
-    try {
-        const { mobile, otp } = req.body;
-
-        const customer = await Customer.findOne({
-            where: {
-                mobile,
-                otp: otp,
-                otp_expiry: { [Op.gt]: new Date() }
-            }
-        });
-
-        if (customer) {
-            res.json({ success: true, message: 'OTP is valid' });
-        } else {
-            res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
-        }
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Check failed' });
-    }
-};
-
 module.exports = {
     sendOTP,
     verifyOTP,
-    resendOTP,
-    checkOTP
+    resendOTP
 };
