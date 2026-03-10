@@ -12,16 +12,11 @@ const MenuItem = db.MenuItem;
 // @route   POST /api/orders
 // @access  Public
 const createOrder = async (req, res) => {
-  // Declare transaction variable outside try block
-  let transaction;
-  
-  try {
-    // Start transaction
-    transaction = await db.sequelize.transaction();
+  const transaction = await db.sequelize.transaction();
 
+  try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      await transaction.rollback();
       return res.status(400).json({
         success: false,
         errors: errors.array()
@@ -29,11 +24,15 @@ const createOrder = async (req, res) => {
     }
 
     const {
+      customer_id,  // Make sure this is included
       customer_name,
       customer_phone,
       customer_email,
       customer_address,
       items,
+      subtotal,
+      delivery_fee,
+      total,
       payment_method,
       payment_status,
       special_instructions,
@@ -41,10 +40,12 @@ const createOrder = async (req, res) => {
       delivery_time
     } = req.body;
 
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const delivery_fee = subtotal > 499 ? 0 : 40;
-    const total = subtotal + delivery_fee;
+    console.log('Creating order for customer_id:', customer_id);
+
+    // Calculate totals (if not provided)
+    const calcSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const calcDeliveryFee = delivery_fee || (calcSubtotal > 499 ? 0 : 40);
+    const calcTotal = total || calcSubtotal + calcDeliveryFee;
 
     // Generate order number
     const date = new Date();
@@ -57,13 +58,14 @@ const createOrder = async (req, res) => {
     // Create order
     const order = await Order.create({
       order_number,
+      customer_id: customer_id || null, // Link to customer if logged in
       customer_name,
       customer_phone,
       customer_address,
-      subtotal,
-      delivery_fee,
-      total,
-      payment_method,
+      subtotal: calcSubtotal,
+      delivery_fee: calcDeliveryFee,
+      total: calcTotal,
+      payment_method: String(payment_method),
       payment_status: payment_status || 'pending',
       order_status: 'pending',
       special_instructions,
@@ -72,6 +74,8 @@ const createOrder = async (req, res) => {
       created_at: new Date(),
       updated_at: new Date()
     }, { transaction });
+
+    console.log('Order created with ID:', order.id, 'for customer:', customer_id);
 
     // Create order items
     for (const item of items) {
@@ -85,7 +89,6 @@ const createOrder = async (req, res) => {
       }, { transaction });
     }
 
-    // Commit transaction
     await transaction.commit();
 
     // Fetch complete order with items
@@ -96,18 +99,17 @@ const createOrder = async (req, res) => {
       }]
     });
 
-    console.log('Order created:', completeOrder.id);
+    console.log('Order completed successfully');
 
-    // Send emails asynchronously (don't await)
+    // Send emails asynchronously (if configured)
     if (customer_email) {
-      sendCustomerOrderEmail(completeOrder, customer_email)
-        .then(() => console.log(`Customer email sent to ${customer_email}`))
-        .catch(err => console.error('Customer email failed:', err.message));
+      try {
+        // Add your email sending logic here
+        console.log('Email would be sent to:', customer_email);
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+      }
     }
-
-    sendAdminNotification(completeOrder)
-      .then(() => console.log('Admin notification sent'))
-      .catch(err => console.error('Admin notification failed:', err.message));
 
     res.status(201).json({
       success: true,
@@ -116,11 +118,7 @@ const createOrder = async (req, res) => {
     });
 
   } catch (error) {
-    // Only rollback if transaction exists and hasn't been committed
-    if (transaction && !transaction.finished) {
-      await transaction.rollback();
-    }
-    
+    await transaction.rollback();
     console.error('Error in createOrder:', error);
     res.status(500).json({
       success: false,
@@ -129,7 +127,6 @@ const createOrder = async (req, res) => {
     });
   }
 };
-
 
 // @desc    Get all orders (admin)
 // @route   GET /api/admin/orders
