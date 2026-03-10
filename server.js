@@ -5,18 +5,41 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./models');
 
-dotenv.config();
+// Determine which env file to load based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? 'production.env' : '.env';
+const envPath = path.resolve(process.cwd(), envFile);
+
+console.log('=================================');
+console.log(`📁 Loading environment from: ${envPath}`);
+console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+console.log('=================================');
+
+// Load the environment file
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+    console.error(`❌ Failed to load ${envFile}:`, result.error);
+    process.exit(1);
+}
+
+// Log loaded variables (without exposing full values)
+console.log('🔧 Configuration loaded:');
+console.log(`- PORT: ${process.env.PORT}`);
+console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`- FAST2SMS_API_KEY exists: ${!!process.env.FAST2SMS_API_KEY}`);
+console.log(`- DB_HOST: ${process.env.DB_HOST}`);
+console.log('=================================');
 
 const app = express();
 
-// CORS configuration - Simplified version
+// CORS configuration
 app.use(cors({
-    origin: true, // Allow any origin
+    origin: true,
     credentials: true,
     optionsSuccessStatus: 200
 }));
 
-// Handle preflight requests explicitly
+// Handle preflight requests
 app.options('*', cors({
     origin: true,
     credentials: true,
@@ -43,7 +66,7 @@ app.get('/', (req, res) => {
     name: 'Restaurant API',
     version: '1.0.0',
     status: 'running',
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -71,11 +94,12 @@ const PORT = process.env.PORT || 5000;
 db.sequelize.authenticate()
   .then(() => {
     console.log('✅ Database connected');
+    console.log('📊 Using database:', process.env.DB_NAME);
     return db.sequelize.sync();
   })
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     });
   })
   .catch(error => {
