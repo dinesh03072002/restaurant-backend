@@ -5,22 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./models');
 
-// Determine which env file to load based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? 'production.env' : '.env';
-const envPath = path.resolve(process.cwd(), envFile);
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+console.log(`📁 Loading environment from: ${envFile}`);
+console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
 
-console.log('=================================');
-console.log(`📁 Loading environment from: ${envPath}`);
-console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
-console.log('=================================');
-
-// Load the environment file
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-    console.error(`❌ Failed to load ${envFile}:`, result.error);
-    process.exit(1);
-}
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
 // Log loaded variables (without exposing full values)
 console.log('🔧 Configuration loaded:');
@@ -28,7 +18,6 @@ console.log(`- PORT: ${process.env.PORT}`);
 console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`- FAST2SMS_API_KEY exists: ${!!process.env.FAST2SMS_API_KEY}`);
 console.log(`- DB_HOST: ${process.env.DB_HOST}`);
-console.log('=================================');
 
 const app = express();
 
@@ -66,7 +55,7 @@ app.get('/', (req, res) => {
     name: 'Restaurant API',
     version: '1.0.0',
     status: 'running',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -99,7 +88,7 @@ db.sequelize.authenticate()
   })
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+      console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
     });
   })
   .catch(error => {
