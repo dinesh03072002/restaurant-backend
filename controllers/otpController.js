@@ -1,12 +1,51 @@
+// controllers/otpController.js
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
+const axios = require('axios'); // Make sure to install: npm install axios
 
 const Customer = db.Customer;
 
 // Generate 6-digit OTP
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Send SMS via Fast2SMS
+const sendSMSViaFast2SMS = async (mobile, otp) => {
+    try {
+        console.log(`📤 Sending OTP ${otp} to ${mobile} via Fast2SMS...`);
+        
+        const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
+            params: {
+                authorization: process.env.FAST2SMS_API_KEY,
+                variables_values: otp,
+                route: 'otp',
+                numbers: mobile,
+                flash: 0,
+                DLT_TE_ID: process.env.FAST2SMS_DLT_TE_ID || '' // Optional: Add if you have DLT registration
+            },
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('📬 Fast2SMS Response:', response.data);
+
+        if (response.data.return === true) {
+            console.log(`✅ SMS sent successfully to ${mobile}`);
+            return { success: true, data: response.data };
+        } else {
+            console.error('❌ Fast2SMS error:', response.data.message);
+            return { success: false, error: response.data.message };
+        }
+    } catch (error) {
+        console.error('❌ Fast2SMS API error:', error.message);
+        if (error.response) {
+            console.error('Fast2SMS Error Details:', error.response.data);
+        }
+        return { success: false, error: error.message };
+    }
 };
 
 // @desc    Send OTP to mobile
@@ -28,7 +67,7 @@ const sendOTP = async (req, res) => {
         const otp = generateOTP();
         const expiry = new Date(Date.now() + 5 * 60000); // 5 minutes
 
-        console.log(`🔐 OTP for ${mobile}: ${otp}`);
+        console.log(`🔐 OTP generated for ${mobile}: ${otp}`);
 
         // Find or create customer
         let customer = await Customer.findOne({ where: { mobile } });
@@ -36,8 +75,10 @@ const sendOTP = async (req, res) => {
         if (!customer) {
             customer = await Customer.create({
                 mobile,
-                name: `User${mobile.slice(-4)}`
+                name: `User${mobile.slice(-4)}`,
+                is_active: true
             });
+            console.log(`📝 New customer created: ${mobile}`);
         }
 
         // Save OTP to database
@@ -46,13 +87,32 @@ const sendOTP = async (req, res) => {
             otp_expiry: expiry
         });
 
-        // TODO: Integrate Fast2SMS here later
-        console.log(`📱 SMS would be sent to ${mobile} with OTP: ${otp}`);
+        // Send SMS via Fast2SMS
+        let smsResult = { success: false };
+        
+        if (process.env.NODE_ENV === 'production') {
+            smsResult = await sendSMSViaFast2SMS(mobile, otp);
+            
+            if (!smsResult.success) {
+                console.warn('⚠️ Fast2SMS delivery failed, but OTP saved for verification');
+                // You might want to queue this for retry or use fallback SMS provider
+            }
+        } else {
+            // Development: log to console
+            console.log(`📱 DEV MODE - SMS would be sent to ${mobile} with OTP: ${otp}`);
+            console.log(`🌐 Fast2SMS would be called in production`);
+            smsResult.success = true; // Assume success in dev
+        }
 
+        // Always return success to client (don't expose SMS failures)
         res.json({
             success: true,
             message: 'OTP sent successfully',
-            debug: process.env.NODE_ENV === 'development' ? { otp } : undefined
+            // Only show OTP in development for testing
+            debug: process.env.NODE_ENV === 'development' ? { 
+                otp,
+                sms: smsResult.success ? 'SMS would be sent' : 'SMS would fail'
+            } : undefined
         });
 
     } catch (error) {
@@ -72,6 +132,8 @@ const verifyOTP = async (req, res) => {
     try {
         const { mobile, otp } = req.body;
 
+        console.log(`🔍 Verifying OTP for ${mobile}: ${otp}`);
+
         // Find customer with matching OTP (not expired)
         const customer = await Customer.findOne({
             where: {
@@ -82,23 +144,43 @@ const verifyOTP = async (req, res) => {
         });
 
         if (!customer) {
+            // Check if OTP exists but expired
+            const expiredCustomer = await Customer.findOne({
+                where: {
+                    mobile,
+                    otp: otp,
+                    otp_expiry: { [Op.lte]: new Date() }
+                }
+            });
+
+            if (expiredCustomer) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'OTP expired. Please request again.'
+                });
+            }
+
             return res.status(401).json({
                 success: false,
-                message: 'Invalid or expired OTP'
+                message: 'Invalid OTP'
             });
         }
+
+        console.log(`✅ OTP verified successfully for ${mobile}`);
 
         // Clear OTP after successful verification
         await customer.update({
             otp: null,
-            otp_expiry: null
+            otp_expiry: null,
+            last_login: new Date()
         });
 
         // Generate JWT token
         const token = jwt.sign(
             { 
                 id: customer.id, 
-                mobile: customer.mobile 
+                mobile: customer.mobile,
+                name: customer.name
             },
             process.env.JWT_SECRET,
             { expiresIn: '30d' }
@@ -112,7 +194,9 @@ const verifyOTP = async (req, res) => {
                 customer: {
                     id: customer.id,
                     name: customer.name,
-                    mobile: customer.mobile
+                    mobile: customer.mobile,
+                    email: customer.email || '',
+                    is_active: customer.is_active
                 }
             }
         });
@@ -134,14 +218,28 @@ const resendOTP = async (req, res) => {
     try {
         const { mobile } = req.body;
 
+        console.log(`🔄 Resending OTP for ${mobile}`);
+
         // Find customer
         const customer = await Customer.findOne({ where: { mobile } });
         
         if (!customer) {
             return res.status(404).json({
                 success: false,
-                message: 'Mobile number not registered'
+                message: 'Mobile number not registered. Please try sending OTP first.'
             });
+        }
+
+        // Check if last OTP was sent within last minute (rate limiting)
+        if (customer.otp_expiry) {
+            const timeSinceLastOTP = (Date.now() - new Date(customer.otp_expiry).getTime() + 5*60000);
+            if (timeSinceLastOTP < 60000) { // Less than 1 minute
+                const waitTime = Math.ceil((60000 - timeSinceLastOTP) / 1000);
+                return res.status(429).json({
+                    success: false,
+                    message: `Please wait ${waitTime} seconds before requesting again`
+                });
+            }
         }
 
         // Generate new OTP
@@ -154,25 +252,67 @@ const resendOTP = async (req, res) => {
             otp_expiry: expiry
         });
 
-        console.log(`🔄 Resent OTP for ${mobile}: ${otp}`);
+        // Send SMS via Fast2SMS
+        let smsResult = { success: false };
+        
+        if (process.env.NODE_ENV === 'production') {
+            smsResult = await sendSMSViaFast2SMS(mobile, otp);
+            
+            if (!smsResult.success) {
+                console.warn('⚠️ Fast2SMS resend failed, but OTP saved for verification');
+            }
+        } else {
+            console.log(`🔄 DEV MODE - Resent OTP for ${mobile}: ${otp}`);
+            smsResult.success = true;
+        }
 
         res.json({
             success: true,
             message: 'OTP resent successfully',
-            debug: process.env.NODE_ENV === 'development' ? { otp } : undefined
+            debug: process.env.NODE_ENV === 'development' ? { 
+                otp,
+                sms: smsResult.success ? 'SMS would be sent' : 'SMS would fail'
+            } : undefined
         });
 
     } catch (error) {
         console.error('❌ OTP resend error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to resend OTP'
+            message: 'Failed to resend OTP',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+};
+
+// @desc    Verify OTP (alternative endpoint for testing)
+// @route   POST /api/otp/check
+// @access  Public (for testing only)
+const checkOTP = async (req, res) => {
+    try {
+        const { mobile, otp } = req.body;
+
+        const customer = await Customer.findOne({
+            where: {
+                mobile,
+                otp: otp,
+                otp_expiry: { [Op.gt]: new Date() }
+            }
+        });
+
+        if (customer) {
+            res.json({ success: true, message: 'OTP is valid' });
+        } else {
+            res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Check failed' });
     }
 };
 
 module.exports = {
     sendOTP,
     verifyOTP,
-    resendOTP
+    resendOTP,
+    checkOTP
 };
