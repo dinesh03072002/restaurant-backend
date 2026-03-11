@@ -3,7 +3,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const { createOrder } = require('../controllers/orderController');
 
-console.log('✅ orderRoutes loaded');
+console.log('orderRoutes loaded');
 
 const orderValidation = [
     body('customer_name').notEmpty().trim(),

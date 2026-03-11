@@ -18,7 +18,7 @@ const {
 // All admin routes require authentication
 router.use(verifyToken, isAdmin);
 
-// Image upload route - Make sure this is exactly '/upload'
+// Image upload route
 router.post('/upload', upload.single('image'), uploadImage);
 
 // Menu management

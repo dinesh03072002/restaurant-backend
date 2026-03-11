@@ -4,7 +4,7 @@ const { body } = require('express-validator');
 const { login, register, getMe } = require('../controllers/authController');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
-console.log('✅ authRoutes loaded');
+console.log('authRoutes loaded');
 
 // Login validation
 const loginValidation = [

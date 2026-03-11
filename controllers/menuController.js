@@ -5,9 +5,7 @@ const { Op } = require('sequelize');
 const MenuItem = db.MenuItem;
 const Category = db.Category;
 
-// @desc    Get all menu items
-// @route   GET /api/menu
-// @access  Public
+
 const getMenuItems = async (req, res) => {
     try {
         const { category, available, vegetarian } = req.query;
@@ -56,9 +54,7 @@ const getMenuItems = async (req, res) => {
     }
 };
 
-// @desc    Get single menu item
-// @route   GET /api/menu/:id
-// @access  Public
+
 const getMenuItemById = async (req, res) => {
     try {
         const menuItem = await MenuItem.findByPk(req.params.id, {
@@ -89,9 +85,7 @@ const getMenuItemById = async (req, res) => {
     }
 };
 
-// @desc    Get menu items by category
-// @route   GET /api/menu/category/:category
-// @access  Public
+
 const getMenuItemsByCategory = async (req, res) => {
     try {
         const { category } = req.params;
@@ -126,9 +120,7 @@ const getMenuItemsByCategory = async (req, res) => {
     }
 };
 
-// @desc    Get all categories
-// @route   GET /api/menu/categories
-// @access  Public
+
 const getCategories = async (req, res) => {
     try {
         const categories = await Category.findAll({
@@ -151,9 +143,7 @@ const getCategories = async (req, res) => {
     }
 };
 
-// @desc    Create menu item
-// @route   POST /api/admin/menu
-// @access  Private/Admin
+
 const createMenuItem = async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -188,9 +178,7 @@ const createMenuItem = async (req, res) => {
     }
 };
 
-// @desc    Update menu item
-// @route   PUT /api/admin/menu/:id
-// @access  Private/Admin
+
 const updateMenuItem = async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -234,9 +222,7 @@ const updateMenuItem = async (req, res) => {
     }
 };
 
-// @desc    Delete menu item
-// @route   DELETE /api/admin/menu/:id
-// @access  Private/Admin
+
 const deleteMenuItem = async (req, res) => {
     try {
         const menuItem = await MenuItem.findByPk(req.params.id);
@@ -264,9 +250,7 @@ const deleteMenuItem = async (req, res) => {
     }
 };
 
-// @desc    Upload image to Cloudinary
-// @route   POST /api/admin/upload
-// @access  Private/Admin
+
 const uploadImage = async (req, res) => {
     try {
         console.log('========== UPLOAD REQUEST RECEIVED ==========');
@@ -285,7 +269,7 @@ const uploadImage = async (req, res) => {
         console.log('- Filename:', req.file.filename);
         console.log('- Original name:', req.file.originalname);
         console.log('- Size:', req.file.size);
-        console.log('- Cloudinary URL:', req.file.path); // This is the secure URL
+        console.log('- Cloudinary URL:', req.file.path); 
 
         // Return the Cloudinary URL
         res.json({
@@ -299,7 +283,7 @@ const uploadImage = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('========== UPLOAD ERROR ==========');
+        console.error('UPLOAD ERROR');
         console.error('Error:', error);
         
         res.status(500).json({

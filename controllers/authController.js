@@ -8,20 +8,20 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        console.log('=================================');
-        console.log('🔐 LOGIN ATTEMPT');
+        
+        console.log('LOGIN ATTEMPT');
         console.log('Email received:', email);
         console.log('Password length:', password?.length);
-        console.log('=================================');
+        
 
-        // Find user by email - make sure this matches your model
+        // Find user by email 
         const user = await User.findOne({ 
             where: { 
                 email: email 
             } 
         });
 
-        console.log('User query result:', user ? '✅ User found' : '❌ User not found');
+        console.log('User query result:', user ? 'User found' : 'User not found');
         
         if (!user) {
             console.log('No user found with email:', email);
@@ -38,7 +38,7 @@ const login = async (req, res) => {
 
         // Check password using model method
         const isMatch = await user.comparePassword(password);
-        console.log('Password comparison result:', isMatch ? '✅ MATCH' : '❌ NO MATCH');
+        console.log('Password comparison result:', isMatch ? 'MATCH' : 'NO MATCH');
 
         if (!isMatch) {
             return res.status(401).json({
@@ -59,8 +59,8 @@ const login = async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRE }
         );
 
-        console.log('✅ Login successful for:', user.email);
-        console.log('=================================');
+        console.log('Login successful for:', user.email);
+        
 
         res.json({
             success: true,
@@ -77,7 +77,7 @@ const login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Login error:', error);
+        console.error('Login error:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',
@@ -87,9 +87,7 @@ const login = async (req, res) => {
 };
 
 
-// @desc    Register user (admin only)
-// @route   POST /api/auth/register
-// @access  Private/Admin
+
 const register = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -112,7 +110,7 @@ const register = async (req, res) => {
       });
     }
 
-    // Create user (password will be hashed by hook)
+    // Create user 
     const user = await User.create({
       name,
       email,
@@ -140,9 +138,7 @@ const register = async (req, res) => {
   }
 };
 
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
+
 const getMe = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {

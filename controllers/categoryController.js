@@ -1,9 +1,7 @@
 const db = require('../models');
 const Category = db.Category;
 
-// @desc    Get all categories
-// @route   GET /api/categories
-// @access  Public
+
 const getCategories = async (req, res) => {
     try {
         const categories = await Category.findAll({
@@ -27,9 +25,7 @@ const getCategories = async (req, res) => {
     }
 };
 
-// @desc    Get single category
-// @route   GET /api/categories/:id
-// @access  Public
+
 const getCategoryById = async (req, res) => {
     try {
         const category = await Category.findByPk(req.params.id);

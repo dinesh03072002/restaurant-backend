@@ -8,9 +8,7 @@ const Order = db.Order;
 const OrderItem = db.OrderItem;
 const MenuItem = db.MenuItem;
 
-// @desc    Create new order
-// @route   POST /api/orders
-// @access  Public
+
 const createOrder = async (req, res) => {
   const transaction = await db.sequelize.transaction();
 
@@ -24,7 +22,7 @@ const createOrder = async (req, res) => {
     }
 
     const {
-      customer_id,  // Make sure this is included
+      customer_id,  
       customer_name,
       customer_phone,
       customer_email,
@@ -42,7 +40,7 @@ const createOrder = async (req, res) => {
 
     console.log('Creating order for customer_id:', customer_id);
 
-    // Calculate totals (if not provided)
+    // Calculate totals 
     const calcSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const calcDeliveryFee = delivery_fee || (calcSubtotal > 499 ? 0 : 40);
     const calcTotal = total || calcSubtotal + calcDeliveryFee;
@@ -58,7 +56,7 @@ const createOrder = async (req, res) => {
     // Create order
     const order = await Order.create({
       order_number,
-      customer_id: customer_id || null, // Link to customer if logged in
+      customer_id: customer_id || null, 
       customer_name,
       customer_phone,
       customer_address,
@@ -101,7 +99,7 @@ const createOrder = async (req, res) => {
 
     console.log('Order completed successfully');
 
-    // Send emails asynchronously (if configured)
+ 
     if (customer_email) {
       try {
         // Add your email sending logic here
@@ -128,9 +126,7 @@ const createOrder = async (req, res) => {
   }
 };
 
-// @desc    Get all orders (admin)
-// @route   GET /api/admin/orders
-// @access  Private/Admin
+
 const getOrders = async (req, res) => {
   try {
     const { status, date } = req.query;
@@ -176,9 +172,7 @@ const getOrders = async (req, res) => {
   }
 };
 
-// @desc    Get single order
-// @route   GET /api/admin/orders/:id
-// @access  Private/Admin
+
 const getOrderById = async (req, res) => {
   try {
     const order = await Order.findByPk(req.params.id, {
@@ -209,9 +203,7 @@ const getOrderById = async (req, res) => {
   }
 };
 
-// @desc    Update order status
-// @route   PUT /api/admin/orders/:id/status
-// @access  Private/Admin
+
 const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;

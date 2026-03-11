@@ -1,8 +1,8 @@
-// controllers/otpController.js
+
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const axios = require('axios'); // Make sure axios is installed: npm install axios
+const axios = require('axios'); 
 
 const Customer = db.Customer;
 
@@ -11,11 +11,11 @@ const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send SMS via Fast2SMS - QUICK SMS ROUTE (NO KYC REQUIRED)
+// Send SMS via Fast2SMS
 const sendSMSViaFast2SMS = async (mobile, otp) => {
     try {
-        console.log(`📤 Sending OTP ${otp} to ${mobile} via Fast2SMS Quick Route...`);
-        console.log(`💰 Your balance: ₹50 - This will cost ₹5 per SMS`);
+        console.log(`Sending OTP ${otp} to ${mobile} via Fast2SMS Quick Route...`);
+        console.log(`Your balance: ₹50 - This will cost ₹5 per SMS`);
         
         // Quick SMS Route - Works without KYC!
         const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
@@ -39,9 +39,9 @@ const sendSMSViaFast2SMS = async (mobile, otp) => {
 
         // Check if successful
         if (response.data.return === true) {
-            console.log(`✅ SMS sent successfully to ${mobile} via Quick Route!`);
-            console.log(`📊 Request ID: ${response.data.request_id || 'N/A'}`);
-            console.log(`💰 Remaining balance: ₹${response.data.wallet_balance || 'Check dashboard'}`);
+            console.log(`SMS sent successfully to ${mobile} via Quick Route!`);
+            console.log(`Request ID: ${response.data.request_id || 'N/A'}`);
+            console.log(`Remaining balance: ₹${response.data.wallet_balance || 'Check dashboard'}`);
             return { success: true, data: response.data };
         } else {
             console.error('❌ Fast2SMS error:', response.data.message);
@@ -59,9 +59,7 @@ const sendSMSViaFast2SMS = async (mobile, otp) => {
     }
 };
 
-// @desc    Send OTP to mobile
-// @route   POST /api/otp/send
-// @access  Public
+
 const sendOTP = async (req, res) => {
     try {
         const { mobile } = req.body;
@@ -76,9 +74,9 @@ const sendOTP = async (req, res) => {
 
         // Generate OTP
         const otp = generateOTP();
-        const expiry = new Date(Date.now() + 5 * 60000); // 5 minutes
+        const expiry = new Date(Date.now() + 5 * 60000); 
 
-        console.log(`🔐 OTP generated for ${mobile}: ${otp}`);
+        console.log(`OTP generated for ${mobile}: ${otp}`);
 
         // Find or create customer
         let customer = await Customer.findOne({ where: { mobile } });
@@ -89,7 +87,7 @@ const sendOTP = async (req, res) => {
                 name: `User${mobile.slice(-4)}`,
                 is_active: true
             });
-            console.log(`📝 New customer created: ${mobile}`);
+            console.log(`New customer created: ${mobile}`);
         }
 
         // Save OTP to database
@@ -103,9 +101,9 @@ const sendOTP = async (req, res) => {
         const smsResult = await sendSMSViaFast2SMS(mobile, otp);
         
         if (smsResult.success) {
-            console.log('✅ SMS sent successfully via Quick Route!');
+            console.log('SMS sent successfully via Quick Route!');
         } else {
-            console.error('❌ SMS failed:', smsResult.error);
+            console.error('SMS failed:', smsResult.error);
             // Don't expose failure to user, just log it
         }
 
@@ -123,7 +121,7 @@ const sendOTP = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ OTP send error:', error);
+        console.error('OTP send error:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to send OTP',
@@ -132,16 +130,14 @@ const sendOTP = async (req, res) => {
     }
 };
 
-// @desc    Verify OTP and login
-// @route   POST /api/otp/verify
-// @access  Public
+
 const verifyOTP = async (req, res) => {
     try {
         const { mobile, otp } = req.body;
 
         console.log(`🔍 Verifying OTP for ${mobile}: ${otp}`);
 
-        // Find customer with matching OTP (not expired)
+        // Find customer with matching OTP 
         const customer = await Customer.findOne({
             where: {
                 mobile,
@@ -173,7 +169,7 @@ const verifyOTP = async (req, res) => {
             });
         }
 
-        console.log(`✅ OTP verified successfully for ${mobile}`);
+        console.log(`OTP verified successfully for ${mobile}`);
 
         // Clear OTP after successful verification
         await customer.update({
@@ -218,9 +214,7 @@ const verifyOTP = async (req, res) => {
     }
 };
 
-// @desc    Resend OTP
-// @route   POST /api/otp/resend
-// @access  Public
+
 const resendOTP = async (req, res) => {
     try {
         const { mobile } = req.body;

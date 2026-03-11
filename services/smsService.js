@@ -21,9 +21,9 @@ class SMSService {
 
             console.log(`📱 Sending OTP ${otp} to ${mobile}`);
 
-            // For development, just log (no actual SMS sent)
+            // For development, just log 
             if (process.env.NODE_ENV === 'development') {
-                console.log('✅ DEV MODE - OTP:', otp);
+                console.log('DEV MODE - OTP:', otp);
                 return { 
                     success: true, 
                     debug: true,
@@ -42,7 +42,7 @@ class SMSService {
                 }
             });
 
-            console.log('✅ SMS sent:', response.data);
+            console.log('SMS sent:', response.data);
             
             if (response.data.return === true) {
                 return {
@@ -55,7 +55,7 @@ class SMSService {
             }
 
         } catch (error) {
-            console.error('❌ SMS sending failed:', error.response?.data || error.message);
+            console.error('SMS sending failed:', error.response?.data || error.message);
             throw new Error(error.response?.data?.message || error.message);
         }
     }
@@ -84,7 +84,7 @@ class SMSService {
 
             return response.data;
         } catch (error) {
-            console.error('❌ SMS sending failed:', error);
+            console.error('SMS sending failed:', error);
             throw error;
         }
     }
@@ -95,7 +95,7 @@ class SMSService {
      * @returns {boolean}
      */
     validateIndianMobile(mobile) {
-        // Indian mobile numbers: 10 digits, starting with 6-9
+        
         const mobileRegex = /^[6-9]\d{9}$/;
         return mobileRegex.test(mobile);
     }
